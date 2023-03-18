@@ -5,23 +5,16 @@ from flask_restful import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = f"postgresql://{config('DB_USER')}:{config('DB_PASSWORD')}" \
-                                        f"@localhost:{config('DB_PORT')}/{config('DB_NAME')}"
+app.config.from_object('config.DevelopmentConfig')  # TODO: get_config from env
+
 db = SQLAlchemy(app)
-from resources.auth import RegisterResource
+from resources.auth import RegisterResource, LoginResource
 
 api = Api(app)
 migrate = Migrate(app, db)
 
-
-class Demo(Resource):
-    def get(self):
-        return {"message": "Helllo"}
-
-
-api.add_resource(Demo, "/asd")
-
 api.add_resource(RegisterResource, "/register")
+api.add_resource(LoginResource, "/login")
 
 if __name__ == '__main__':
     app.run()
