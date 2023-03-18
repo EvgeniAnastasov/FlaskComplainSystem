@@ -1,5 +1,5 @@
 from models.enums import RoleType
-from app import db
+from db import db
 
 
 class User(db.Model):

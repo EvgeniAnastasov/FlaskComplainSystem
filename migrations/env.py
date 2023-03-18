@@ -13,7 +13,7 @@ config = context.config
 # This line sets up loggers basically.
 fileConfig(config.config_file_name)
 logger = logging.getLogger('alembic.env')
-from models.users import *
+from models import *
 
 
 def get_engine():
