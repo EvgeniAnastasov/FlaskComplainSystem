@@ -50,7 +50,7 @@ auth = HTTPTokenAuth(scheme="Bearer")
 
 
 @auth.verify_token
-def verify_token(token):
+def verify_token_and_return_user(token):
     try:
         payload = AuthManager.decode_token(token)
         user = User.query.filter_by(id=payload["sub"]).first()
