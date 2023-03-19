@@ -3,13 +3,17 @@ from flask_restful import Resource
 
 from managers.auth import auth
 from managers.complaint import ComplaintManager
+from models import RoleType
 from schemas.request_schemas.complaints import ComplaintRequestSchema
-from utils.decorators import validate_schema
+from schemas.response_schemas.complaints import ComplaintResponse
+from utils.decorators import validate_schema, permission_required
 
 
 class ComplaintsResource(Resource):
     @auth.login_required
+    @permission_required(RoleType.complainer)
     @validate_schema(ComplaintRequestSchema)
     def post(self):
         data = request.get_json()
-        ComplaintManager.create_complaint(data)
+        complaint = ComplaintManager.create_complaint(data)
+        return ComplaintResponse().dump(complaint), 201
