@@ -1,8 +1,11 @@
+import uuid
+
 from werkzeug.exceptions import BadRequest
 
 from db import db
 from managers.auth import auth
-from models import Complaint, RoleType, State
+from models import Complaint, RoleType, State, TransactionModel
+from services.wise import WiseService
 
 
 class ComplaintManager:
@@ -11,7 +14,18 @@ class ComplaintManager:
         current_user = auth.current_user()
         complaint_data["user_id"] = current_user.id
         complaint = Complaint(**complaint_data)
+
+        amount = complaint_data["amount"]
+        full_name = f"{current_user.first_name} {current_user.last_name}"
+        iban = current_user.iban
+
         db.session.add(complaint)
+        db.session.flush()
+
+        transaction = ComplaintManager.issue_transaction(amount, full_name, iban, complaint.id)
+
+        db.session.add(transaction)
+        db.session.flush()
         db.session.commit()
         return complaint
 
@@ -39,6 +53,9 @@ class ComplaintManager:
     @staticmethod
     def approve_complaint(complaint_id):
         ComplaintManager._validate_status(complaint_id)
+        wise_service = WiseService()
+        transfer = TransactionModel.query.filter_by(complaint_id=complaint_id).first()
+        wise_service.fund_transfer(transfer.transfer_id)
         Complaint.query.filter_by(id=complaint_id).update({"status": State.approved})
         db.session.commit()
 
@@ -55,6 +72,23 @@ class ComplaintManager:
             raise BadRequest("No such a complaint")
         if complaint.status != State.pending:
             raise BadRequest("Complaint already processed")
+
+    @staticmethod
+    def issue_transaction(amount, full_name, iban, complaint_id):
+        wise_services = WiseService()
+        quote_id = wise_services.create_quota(amount)
+        recipient_id = wise_services.create_recipient(full_name, iban)
+        custom_transaction_id = str(uuid.uuid4())
+        transaction_id = wise_services.creat_transfer(quote_id, recipient_id, custom_transaction_id)
+        transaction = TransactionModel(
+            quote_id=quote_id,
+            transfer_id=transaction_id,
+            custom_transfer_id=custom_transaction_id,
+            target_account_id=recipient_id,
+            amount=amount,
+            complaint_id=complaint_id
+        )
+        return transaction
 
 
 role_mapper = {
